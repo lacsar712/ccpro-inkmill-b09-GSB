@@ -55,6 +55,32 @@ docker compose up --build -d
 
 健康检查：`GET /api/health` → `{"status":"ok","service":"InkMill"}`
 
+## 粘度取样导出（服务端 CSV + 对账）
+
+导出由后端统一生成，前端**不拼接 CSV**，避免口径漂移。所有接口需 JWT。
+
+| 接口 | 说明 |
+|------|------|
+| `GET /api/viscosity-samples/export.csv` | 下载 CSV，**UTF-8 BOM**（Excel 直开中文不乱码），列依次为 `millCode, workshopName, sampledAt, viscosityPaS, tempC, notes` |
+| `GET /api/viscosity-samples/export-check` | 对账 JSON：`rows`、`sumViscosity`、`byWorkshop`（每项含 `workshopId, workshopName, count, sumViscosity`） |
+
+两个接口共用同一套筛选与同一段取数代码：
+
+- 查询参数：`workshopId`、`millId`、`from`、`to`，均可省略；无筛选时导出全部。
+- `from`/`to` 按**东八区（UTC+8）**解释，支持 `YYYY-MM-DD` 或 `YYYY-MM-DD HH:MM:SS`；仅传日期时，`to` 含当天全天（到 23:59:59.999999）。
+- `from` 晚于 `to` 返回 **HTTP 400**，中文消息「起始时间不能晚于结束时间」。
+- `workshopName` 必须经取样记录的 `millId` → `mills.workshopId` → `workshops` 关联得出（不按 `millCode` 猜车间），因此两个车间存在相同 `millCode` 时，导出行的车间名仍各自归属正确。
+- 空结果集：CSV 仅含表头一行，`export-check.rows === 0`、`sumViscosity === 0`、`byWorkshop === []`。
+
+**对账口径保证**：`rows` 等于 CSV 数据行数（不含表头）；`sumViscosity` 与 CSV 粘度列之和一致（允许绝对误差 0.0001，合计在服务端以 `Decimal` 精确累加）。
+
+**前端两步流程**（粘度取样页「导出 CSV」面板）：
+
+1. 选择车间 / 研磨机 / 起止时间后点击「对账」，页面展示总行数、粘度合计与按车间分组；
+2. 核对无误后点击「确认下载 CSV」，浏览器携带 JWT 请求 `export.csv`。
+
+下载请求**原样复用对账时的 query string**，两次请求筛选条件必然一致；筛选条件一旦变更，对账结果立即失效，必须重新对账后才能下载。
+
 ## 本地开发（可选）
 
 **后端**（需本机 MySQL 或连 Docker 的 3312 端口）：

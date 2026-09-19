@@ -34,6 +34,19 @@ export interface ViscositySample {
   notes: string | null;
 }
 
+export interface ExportCheckByWorkshop {
+  workshopId: number;
+  workshopName: string;
+  count: number;
+  sumViscosity: number;
+}
+
+export interface ExportCheck {
+  rows: number;
+  sumViscosity: number;
+  byWorkshop: ExportCheckByWorkshop[];
+}
+
 export interface GrindPass {
   id: number;
   millId: number;
