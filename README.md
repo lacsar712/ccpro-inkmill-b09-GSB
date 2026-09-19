@@ -55,6 +55,54 @@ docker compose up --build -d
 
 健康检查：`GET /api/health` → `{"status":"ok","service":"InkMill"}`
 
+## 粘度取样导出与对账（服务端生成）
+
+CSV **只由后端生成**，前端不拼接任何 CSV 行。导出前先调对账接口核对行数与合计，确认后再用**完全相同的筛选条件**下载 CSV。
+
+两个接口共用同一套筛选、同一条 JOIN 查询与同一排序（唯一实现，不存在两套口径）；`workshopName` 一律经 `取样.millId → Mill.workshopId → Workshop` 取得，**不按 millCode 反查车间**，因此不同车间下出现相同 millCode 时车间名仍各归其主。
+
+| 接口 | 说明 |
+|------|------|
+| `GET /api/viscosity-samples/export.csv` | 下载 CSV，**UTF-8 BOM**（`utf-8-sig`，Excel 直接打开不乱码） |
+| `GET /api/viscosity-samples/export-check` | 同口径对账，返回行数、粘度合计与按车间拆分 |
+
+查询参数（均可选，无参数导出全部）：
+
+| 参数 | 含义 |
+|------|------|
+| `workshopId` | 按研磨机所属车间过滤 |
+| `millId` | 按研磨机过滤（与车间同码机台靠 id 精确区分） |
+| `from` | 起始时间（含），按**东八区**解释；裸日期取当日 `00:00` |
+| `to` | 结束时间（含），同样按东八区解释 |
+
+- 时间格式：`YYYY-MM-DD` 或 `YYYY-MM-DDTHH:MM:SS`，也接受 `Z`/带偏移量（会换算到东八区）。
+- `from > to` 时两个接口都返回 **HTTP 400**，`{"message": "起始时间不能晚于结束时间"}`。
+- 空结果：CSV **仅含表头**，对账 `rows = 0`。
+
+CSV 列顺序固定为：
+
+```
+millCode,workshopName,sampledAt,viscosityPaS,tempC,notes
+```
+
+对账响应：
+
+```json
+{
+  "rows": 3,
+  "sumViscosity": 10.3501,
+  "byWorkshop": [
+    { "workshopId": 1, "workshopName": "一号油墨车间", "count": 2, "sumViscosity": 5.1001 },
+    { "workshopId": 2, "workshopName": "调墨中心",     "count": 1, "sumViscosity": 5.25 }
+  ]
+}
+```
+
+`rows` 等于 CSV 数据行数；`sumViscosity` 与 CSV 粘度列之和的绝对误差 ≤ `0.0001`。
+
+前端「粘度取样」页流程：选择车间 / 研磨机 / 起止时间 → 点**对账**展示行数、合计与按车间明细 → 点**确认并下载 CSV**；筛选一旦改动，下载按钮禁用并提示重新对账，确保两次请求条件一致。
+
+
 ## 本地开发（可选）
 
 **后端**（需本机 MySQL 或连 Docker 的 3312 端口）：

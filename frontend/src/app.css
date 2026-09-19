@@ -176,6 +176,43 @@ textarea {
   margin-bottom: 0.8rem;
 }
 
+.hint {
+  color: var(--steel);
+  font-size: 0.85rem;
+  margin: 0.2rem 0 0.9rem;
+}
+
+.actions .stale,
+.actions .err-inline {
+  align-self: center;
+  font-size: 0.85rem;
+}
+
+.actions .stale {
+  color: #d9a441;
+}
+
+.actions .err-inline {
+  color: var(--vermillion-400);
+}
+
+.check {
+  margin-top: 1rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.9rem;
+}
+
+.check-line {
+  margin-bottom: 0.7rem;
+  font-size: 0.95rem;
+}
+
+.btn-ghost:disabled,
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .muted {
   color: var(--steel);
 }

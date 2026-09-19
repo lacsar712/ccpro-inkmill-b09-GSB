@@ -43,3 +43,34 @@ export async function api<T = unknown>(
 
   return data as T;
 }
+
+/**
+ * 下载二进制(如服务端生成的 CSV)。携带同样的 JWT。
+ * 服务端的错误响应是 JSON，这里读取 blob 文本后按 JSON 解出 message。
+ */
+export async function apiBlob(path: string): Promise<Blob> {
+  const headers: Record<string, string> = {};
+  const t = get(token);
+  if (t) headers.Authorization = `Bearer ${t}`;
+
+  const res = await fetch(`/api${path}`, { headers });
+
+  if (res.status === 401) {
+    clearSession();
+    throw new Error('未登录或登录已过期');
+  }
+
+  if (!res.ok) {
+    const text = await res.text();
+    let msg = `请求失败 (${res.status})`;
+    try {
+      const body = JSON.parse(text) as { message?: string; error?: string };
+      msg = body.message || body.error || msg;
+    } catch {
+      /* 非 JSON 错误体，沿用默认文案 */
+    }
+    throw new Error(msg);
+  }
+
+  return res.blob();
+}
